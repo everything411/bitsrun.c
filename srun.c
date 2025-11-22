@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 /*
  * srun.c by everything411
- * Supported Arch: x86_64, i386, arm, aarch64, mipsel
+ * Supported Arch: x86_64, i386, arm, aarch64, mips, mipsel
  * ( x86_64-linux-gnu-gcc | i686-linux-gnu-gcc | arm-linux-gnueabi-gcc | aarch64-linux-gnu-gcc ) -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o srun
- * mipsel-linux-gnu-gcc -O2 -march=24kc -msoft-float -fno-pic -mno-abicalls -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o srun
+ * ( mipsel-linux-gnu-gcc | mips-linux-gnu-gcc ) -O2 -march=24kc -msoft-float -fno-pic -mno-abicalls -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o srun
  */
 
 /* ==========================================
@@ -35,12 +35,12 @@ long syscall3(long n, long a1, long a2, long a3)
 void __attribute__((naked)) _start()
 {
     __asm__ volatile(
-        "pop %rdi\n\t"        // argc -> rdi
-        "mov %rsp, %rsi\n\t"  // argv -> rsi
-        "andq $-16, %rsp\n\t" // align stack to 16 bytes
-        "call main\n\t"
-        "mov %rax, %rdi\n\t"
-        "mov $60, %rax\n\t" // exit
+        "pop %rdi\n"        // argc -> rdi
+        "mov %rsp, %rsi\n"  // argv -> rsi
+        "andq $-16, %rsp\n" // align stack to 16 bytes
+        "call main\n"
+        "mov %rax, %rdi\n"
+        "mov $60, %rax\n" // exit
         "syscall");
 }
 
@@ -58,9 +58,9 @@ long syscall3(long n, long a1, long a2, long a3)
 {
     long ret;
     __asm__ volatile(
-        "pushl %%ebx\n\t"
-        "movl %2, %%ebx\n\t"
-        "int $0x80\n\t"
+        "pushl %%ebx\n"
+        "movl %2, %%ebx\n"
+        "int $0x80\n"
         "popl %%ebx"
         : "=a"(ret) : "a"(n), "r"(a1), "c"(a2), "d"(a3) : "memory");
     return ret;
@@ -69,13 +69,13 @@ long syscall3(long n, long a1, long a2, long a3)
 void __attribute__((naked)) _start()
 {
     __asm__ volatile(
-        "pop %eax\n\t"       // argc
-        "mov %esp, %ecx\n\t" // argv
-        "push %ecx\n\t"
-        "push %eax\n\t"
-        "call main\n\t"
-        "mov %eax, %ebx\n\t"
-        "mov $1, %eax\n\t" // exit
+        "pop %eax\n"       // argc
+        "mov %esp, %ecx\n" // argv
+        "push %ecx\n"
+        "push %eax\n"
+        "call main\n"
+        "mov %eax, %ebx\n"
+        "mov $1, %eax\n" // exit
         "int $0x80");
 }
 
@@ -93,11 +93,11 @@ long syscall3(long n, long a1, long a2, long a3)
 {
     long ret;
     __asm__ volatile(
-        "mov r7, %1\n\t"
-        "mov r0, %2\n\t"
-        "mov r1, %3\n\t"
-        "mov r2, %4\n\t"
-        "swi 0x0\n\t"
+        "mov r7, %1\n"
+        "mov r0, %2\n"
+        "mov r1, %3\n"
+        "mov r2, %4\n"
+        "swi 0x0\n"
         "mov %0, r0"
         : "=r"(ret) : "r"(n), "r"(a1), "r"(a2), "r"(a3)
         : "r0", "r1", "r2", "r7", "memory");
@@ -107,10 +107,10 @@ long syscall3(long n, long a1, long a2, long a3)
 void __attribute__((naked)) _start()
 {
     __asm__ volatile(
-        "ldr r0, [sp]\n\t"   // argc
-        "add r1, sp, #4\n\t" // argv
-        "bl main\n\t"
-        "mov r7, #1\n\t" // exit
+        "ldr r0, [sp]\n"   // argc
+        "add r1, sp, #4\n" // argv
+        "bl main\n"
+        "mov r7, #1\n" // exit
         "swi 0x0");
 }
 
@@ -164,18 +164,25 @@ long syscall3(long n, long a1, long a2, long a3)
     return x0;
 }
 
-void _start()
-{
-    __asm__ volatile(
-        "ldr x0, [sp]\n\t"   // argc
-        "add x1, sp, #8\n\t" // argv
-        "bl main\n\t"
-        "mov x8, #93\n\t" // exit
-        "svc 0");
-}
+__asm__(
+    ".section .text\n"
+    ".global _start\n"
+    ".type _start, %function\n"
+    "_start:\n"
+    "ldr x0, [sp]\n"
+    "add x1, sp, #8\n"
+    "bl main\n"
+    "mov x8, #93\n"
+    "svc #0\n");
 
 #elif defined(__mips__)
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define ARCH_NAME "mipsel"
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define ARCH_NAME "mips"
+#endif
+
 #define SYS_BASE 4000
 #define SYS_exit (SYS_BASE + 1)
 #define SYS_read (SYS_BASE + 3)
@@ -199,20 +206,21 @@ long syscall3(long n, long a1, long a2, long a3)
     return v0;
 }
 
-__asm__ (
+__asm__(
     ".section .text\n"
     ".global __start\n"
     ".align 2\n"
     "__start:\n"
-    ".word 0x8fa40000\n"
-    ".word 0x27a50004\n"
-    ".word 0x27bdffe0\n"
+    ".set noreorder\n"
+    "lw $a0, 0($sp)\n"
+    "addiu $a1, $sp, 4\n"
+    "addiu $sp, $sp, -32\n"
     "jal main\n"
-    ".word 0x00000000\n"
-    ".word 0x00402025\n"
-    ".word 0x24020fa1\n"
-    ".word 0x0000000c\n"
-);
+    "nop\n"
+    "move $a0, $v0\n"
+    "li $v0, 4001\n"
+    "syscall\n"
+    ".set reorder\n");
 
 #else
 #error "Unsupported Architecture"
@@ -561,8 +569,15 @@ struct sockaddr_in
     char sin_zero[8];
 };
 
-#define SRUN_IP 0x3700000A // 10.0.0.55 Little Endian
-#define SRUN_PORT 80
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define SRUN_IP 0x3700000A // 10.0.0.55
+#define SRUN_PORT 0x5000   // 80
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define SRUN_IP 0x0A000037 // 10.0.0.55
+#define SRUN_PORT 0x0050   // 80
+#else
+#error "unsupported byte order"
+#endif
 
 int connect_srun()
 {
@@ -571,8 +586,8 @@ int connect_srun()
         return -1;
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
-    addr.sin_family = 2;
-    addr.sin_port = (SRUN_PORT >> 8) | (SRUN_PORT << 8);
+    addr.sin_family = AF_INET;
+    addr.sin_port = SRUN_PORT;
     addr.sin_addr.s_addr = SRUN_IP;
     if (sys_connect(fd, &addr, sizeof(addr)) < 0)
     {
@@ -594,7 +609,7 @@ void http_get(const char *path, char *output, int max_len)
     static char req[512];
     strcpy(req, "GET ");
     strcat(req, path);
-    strcat(req, " HTTP/1.0\r\nHost: 10.0.0.55\r\nUser-Agent: Mozilla/5.0 Srun client\r\n\r\n");
+    strcat(req, " HTTP/1.0\r\nHost: 10.0.0.55\r\nConnection: close\r\nUser-Agent: Mozilla/5.0 Srun client\r\n\r\n");
 
     sys_write(fd, req, strlen(req));
     int total = 0, r;
@@ -610,8 +625,17 @@ void http_get(const char *path, char *output, int max_len)
     sys_close(fd);
 }
 
+// ugly but work
 void get_json_value(const char *json, const char *key, char *out)
 {
+    // skip HTTP header
+    json = strstr(json, "\r\n\r\n");
+    if (!json)
+    {
+        out[0] = 0;
+        return;
+    }
+
     static char search[64];
     strcpy(search, "\"");
     strcat(search, key);
@@ -649,6 +673,25 @@ int main(int argc, char **argv)
     if (argc < 2)
         print_usage();
     char *action = argv[1];
+
+    if (strcmp(action, "login") == 0)
+    {
+        if (argc < 4)
+        {
+            print("Usage: srun login <user> <pass>\n");
+            return 1;
+        }
+
+        if (strlen(argv[2]) > 64 || strlen(argv[3]) > 64)
+        {
+            print("Error: Username or password too long.\n");
+            return 1;
+        }
+    }
+    else if (strcmp(action, "logout") != 0 && strcmp(action, "status") != 0)
+    {
+        print_usage();
+    }
 
     /* Step 0: Check Status & Get IP */
     static char resp[4096];
@@ -701,12 +744,6 @@ int main(int argc, char **argv)
     /* --- Command: login --- */
     else if (strcmp(action, "login") == 0)
     {
-        if (argc < 4)
-        {
-            print("Usage: srun login <user> <pass>\n");
-            return 1;
-        }
-
         if (strcmp(value, "ok") == 0)
         {
             print("Already online. IP: ");
@@ -725,7 +762,7 @@ int main(int argc, char **argv)
         print(client_ip);
         print("\n");
 
-        // 1. Get Challenge
+        // 1. Get Challenge (64 bytes)
         static char path[512];
         strcpy(path, "/cgi-bin/get_challenge?callback=jsonp&username=");
         strcat(path, username);
@@ -745,7 +782,7 @@ int main(int argc, char **argv)
         static char json_data[512];
         strcpy(json_data, "{\"username\":\"");
         strcat(json_data, username);
-        strcat(json_data, "\",\"password\":\"");
+        strcat(json_data, "\",\"password\":\""); // Real user password goes here
         strcat(json_data, password);
         strcat(json_data, "\",\"acid\":\"1\",\"ip\":\"");
         strcat(json_data, client_ip);
@@ -769,7 +806,8 @@ int main(int argc, char **argv)
         strcpy(chk_str, token);
         strcat(chk_str, username);
         strcat(chk_str, token);
-        // Hardcoded MD5 to skip HMAC implementation, server doesn't validate properly
+        // Should be hmac.md5(token, password), but server doesn't validate properly
+        // Fake MD5 to skip HMAC implementation
         strcat(chk_str, "e10adc3949ba59abbe56e057f20f883e");
         strcat(chk_str, token);
         strcat(chk_str, "1");
@@ -797,7 +835,6 @@ int main(int argc, char **argv)
         checksum[40] = 0;
 
         // 4. Send Login Request
-        // Hardcoded MD5 to skip HMAC implementation, server doesn't validate properly
         static char pwd_enc[] = "%7BMD5%7D"
                                 "e10adc3949ba59abbe56e057f20f883e";
         static char info_enc[2048];
