@@ -35,36 +35,32 @@ jobs:
       - name: Compile x86_64
         run: |
           x86_64-linux-gnu-gcc -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-x86_64
-          strip -s dist/srun-linux-x86_64
+          x86_64-linux-gnu-strip -s dist/srun-linux-x86_64
 
       - name: Compile i386
         run: |
           i686-linux-gnu-gcc -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-i386
-          strip -s dist/srun-linux-i386
+          i686-linux-gnu-strip -s dist/srun-linux-i386
 
       - name: Compile ARM (armv5/v7)
         run: |
           arm-linux-gnueabi-gcc -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-arm
-          strip -s dist/srun-linux-arm
+          arm-linux-gnueabi-strip -s dist/srun-linux-arm
 
       - name: Compile AArch64 (arm64)
         run: |
           aarch64-linux-gnu-gcc -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-aarch64
-          strip -s dist/srun-linux-aarch64
+          aarch64-linux-gnu-strip -s dist/srun-linux-aarch64
 
       - name: Compile MIPS (Big Endian)
         run: |
           mips-linux-gnu-gcc -O2 -march=24kc -msoft-float -fno-pic -mno-abicalls -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-mips
-          strip -s dist/srun-linux-mips
+          mips-linux-gnu-strip -s dist/srun-linux-mips
 
       - name: Compile MIPSEL (Little Endian)
         run: |
           mipsel-linux-gnu-gcc -O2 -march=24kc -msoft-float -fno-pic -mno-abicalls -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-mipsel
-          strip -s dist/srun-linux-mipsel
-
-      - name: Generate Checksums
-        working-directory: dist
-        run: sha256sum * > checksums.txt
+          mipsel-linux-gnu-strip -s dist/srun-linux-mipsel
 
       - name: Upload Artifacts (Build only)
         if: github.event_name != 'release'
