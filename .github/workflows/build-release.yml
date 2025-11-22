@@ -1,0 +1,82 @@
+name: Build and Release Srun
+
+on:
+  push:
+    branches: [ "master" ]
+  release:
+    types: [created]
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    name: Build for all architectures
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 需要写权限来发布 Release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Cross-Compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-x86-64-linux-gnu \
+            gcc-i686-linux-gnu \
+            gcc-arm-linux-gnueabi \
+            gcc-aarch64-linux-gnu \
+            gcc-mips-linux-gnu \
+            gcc-mipsel-linux-gnu
+
+      - name: Create output directory
+        run: mkdir -p dist
+
+      - name: Compile x86_64
+        run: |
+          x86_64-linux-gnu-gcc -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-x86_64
+          strip -s dist/srun-linux-x86_64
+
+      - name: Compile i386
+        run: |
+          i686-linux-gnu-gcc -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-i386
+          strip -s dist/srun-linux-i386
+
+      - name: Compile ARM (armv5/v7)
+        run: |
+          arm-linux-gnueabi-gcc -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-arm
+          strip -s dist/srun-linux-arm
+
+      - name: Compile AArch64 (arm64)
+        run: |
+          aarch64-linux-gnu-gcc -O2 -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-aarch64
+          strip -s dist/srun-linux-aarch64
+
+      - name: Compile MIPS (Big Endian)
+        run: |
+          mips-linux-gnu-gcc -O2 -march=24kc -msoft-float -fno-pic -mno-abicalls -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-mips
+          strip -s dist/srun-linux-mips
+
+      - name: Compile MIPSEL (Little Endian)
+        run: |
+          mipsel-linux-gnu-gcc -O2 -march=24kc -msoft-float -fno-pic -mno-abicalls -nostdlib -static -fno-builtin -fno-stack-protector srun.c -o dist/srun-linux-mipsel
+          strip -s dist/srun-linux-mipsel
+
+      - name: Generate Checksums
+        working-directory: dist
+        run: sha256sum * > checksums.txt
+
+      - name: Upload Artifacts (Build only)
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: srun-binaries
+          path: dist/*
+
+      - name: Upload to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
